@@ -1,0 +1,1 @@
+;; new-if中两个子句then-clause和else-clause都会被求值,所以会造成无限递归
