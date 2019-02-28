@@ -1,0 +1,6 @@
+(define (count-leaves t)
+  (accumlate + 0 (map (lambda (node)
+                        (if (pair? node)
+                            (count-leaves node)
+                            1))
+                      t)))

@@ -1,0 +1,5 @@
+(define (print-list list)
+  (cond ((null? list)
+         '())
+        ((display (car list))
+         (print-list (cdr list)))))
