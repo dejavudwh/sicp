@@ -1,0 +1,35 @@
+(define (filter predicate sequence)
+  (cond ((null? sequence)
+         nil)
+        ((predicate (car sequence))
+         (cons (car sequence)
+               (filter predicate (cdr sequence))))
+        (else (filter predicate (cdr sequence)))))
+
+(define (adjoin-position new-row rest-of-queens)
+  (cons new-row rest-of-queens))
+
+(define empty-board '())
+
+(define (safe? k position)
+  (define (iter new-queen rest-queens i)
+    (if (null? rest-queens)
+        #t
+        (let ((queen (car rest-queens)))
+          (if (or (= new-queen queen)
+                  (= new-queen (+ i queen))
+                  (= new-queen (- queen i)))
+              #f
+              (iter new-queen (cdr rest-queens (+ i 1)))))))
+  (iter (car position) (cdr position)))
+
+(define (queens board-size)
+  (define (queen-col k)
+    (if (= k 0)
+        (list empty-board)
+        (filter
+         (lambda (position) (safe? posstion))
+         (flatmap
+          (lambda (rest-of-queens)
+            (map 
+            
