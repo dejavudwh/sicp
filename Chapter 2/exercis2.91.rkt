@@ -1,0 +1,25 @@
+ (define (div-terms L1 L2) 
+   (if (empty-termlist? L1) 
+     (list (the-empty-termlist) (the-empty-termlist)) 
+     (let ((t1 (first-term L1)) 
+           (t2 (first-term L2))) 
+       (if (> (order t2) (order t1)) 
+         (list (the-empty-termlist) L1) 
+         (let ((new-c (div (coeff t1) (coeff t2))) 
+           (new-o (- (order t1) (order t2))) 
+           (new-t (make-term new-o new-c))) 
+           (let ((rest-of-result 
+                   (div-terms (add-poly L1 (negate (mul-poly (list new-t) L2))) 
+                               L2))) 
+             (list (adjoin-term new-t 
+                                (car rest-of-result)) 
+                   (cadr rest-of-result))))
+
+         )))) 
+  
+ (define (div-poly poly1 poly2) 
+   (if (same-variable? (variable poly1) (variable poly2)) 
+     (make-poly (variable poly1) 
+       (div-terms (term-list poly1) 
+                  (term-list poly2))) 
+     (error "not the same variable" (list poly1 poly2)))) 
