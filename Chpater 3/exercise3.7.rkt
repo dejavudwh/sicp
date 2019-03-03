@@ -1,0 +1,6 @@
+(define (make-joint account old-pwd new-pwd)
+  (and (number? ((account old-pwd 'withdraw) 0))
+       (lambda (pwd msg)
+         (if (eq? pwd new-pwd)
+             (account old-pwd msg)
+             (error "Password mistake")))))
