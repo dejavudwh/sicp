@@ -16,4 +16,25 @@
         (error "unassigned var")
         value)))
 
+;;b
+(define (scan-out-defines body)
+  (define (name-unassigned defines)
+    (map (lambda (x) (list (definition-variable x) '*unassigned*)) defines))
+  (define (set-values defines)
+    (map (lambda (x) (list 'set! (definition-variable x) (definition-value)))
+         defines))
+  (define (defines->let expr defines no-defines)
+    (cond ((null? exprs)
+           (if (null? defines)
+               body)
+           (list (list 'let (name-unassigned defines)
+                       (make-begin (append (set-values defines)
+                                           (reverse not-defines))))))
+          ((definition? (car exprs))
+           (defines->let (cdr exprs) (cons (car exprs) defines) not-defines))
+          (else (defines->let (cdr exprs) defines (cons (car exprs) not-defines)))))
+
+ (define->let body '() '()))
+    
+
          
