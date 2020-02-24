@@ -1,0 +1,1 @@
+; 对exchange进行串行化之后，执行exchange，withdraw也会被串行化，这时候就会产生死锁
