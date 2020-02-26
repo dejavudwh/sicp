@@ -1,0 +1,21 @@
+#lang scheme
+
+ (define (eval-cond exp env) 
+   (let ((clauses (cdr exp)) 
+         (predicate car) 
+         (consequent cdr)) 
+     (define (imply-clause? clause) (eq? (cadr clause)  '=>)) 
+     (define (else-clause?  clause) (eq? (car clause) 'else)) 
+     (define (rec-eval clauses) 
+       (if (null? clauses) 'false; checked all, no else-clause 
+           (let ((first-clause (car clauses))) 
+             (cond ((else-clause? first-clause) (eval-sequence (consequent first-clause) env)) 
+                   ((imply-clause? first-clause) (let ((evaluated (eval (predicate first-clause) env))) 
+                                                   (if (true? evaluated) 
+                                                       (apply (eval (caddr first-clause) env) 
+                                                              (list evaluated)) 
+                                                       'false))) 
+                   (else (if (true? (eval (predicate first-clause) env)) 
+                             (eval-sequence (consequent first-clause) env) 
+                             'false)))))) 
+     (rec-eval clauses))) 
