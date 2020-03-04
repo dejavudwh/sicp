@@ -1,22 +1,17 @@
 #lang planet neil/sicp 
 
-;;;;METACIRCULAR EVALUATOR FROM CHAPTER 4 (SECTIONS 4.1.1-4.1.4) of
-;;;; STRUCTURE AND INTERPRETATION OF COMPUTER PROGRAMS
+;;; chp4元循环求值器的完整代码
 
-;;;;Matches code in ch4.scm
 
-;;;;This file can be loaded into Scheme as a whole.
-;;;;Then you can initialize and start the evaluator by evaluating
-;;;; the two commented-out lines at the end of the file (setting up the
-;;;; global environment and starting the driver loop).
+;; 区分求值器内部的apply-in-evaluators
+;; 这个就是利用lisp原生的基本过程
 
-;;;;**WARNING: Don't load this file twice (or you'll lose the primitives
-;;;;  interface, due to renamings of apply).
-
-;;;from section 4.1.4 -- must precede def of metacircular apply
 (define apply-in-underlying-scheme apply)
 
-;;;SECTION 4.1.1
+;;; [eval]
+
+;; 因为Lisp语法自带AST，所以语法分析部分非常少，只有后面那些选择构造函数
+;; 这个eval相当于递归下降来遍历AST然后进行解释执行
 
 (define (eval exp env)
   (cond ((self-evaluating? exp) exp)
@@ -33,12 +28,15 @@
          (eval-sequence (begin-actions exp) env))
         ((cond? exp) (eval (cond->if exp) env))
         ((application? exp)
-         (apply (eval (operator exp) env)
-                (list-of-values (operands exp) env)))
+         (apply-in-evaluators (eval (operator exp) env)
+                              (list-of-values (operands exp) env)))
         (else
          (error "Unknown expression type -- EVAL" exp))))
 
-(define (apply procedure arguments)
+;; 这个是用来执行过程的，基本思路就是分为lisp原本就可以提供的基本过程和用户自定义的过程
+;; 用户自定义的过程就是extends环境然后eval过程体里的每一条语句
+
+(define (apply-in-evaluators procedure arguments)
   (cond ((primitive-procedure? procedure)
          (apply-primitive-procedure procedure arguments))
         ((compound-procedure? procedure)
@@ -52,6 +50,7 @@
          (error
           "Unknown procedure type -- APPLY" procedure))))
 
+;; 求参数
 
 (define (list-of-values exps env)
   (if (no-operands? exps)
@@ -59,15 +58,21 @@
       (cons (eval (first-operand exps) env)
             (list-of-values (rest-operands exps) env))))
 
+;; if
+
 (define (eval-if exp env)
   (if (true? (eval (if-predicate exp) env))
       (eval (if-consequent exp) env)
       (eval (if-alternative exp) env)))
 
+;; sequence
+
 (define (eval-sequence exps env)
   (cond ((last-exp? exps) (eval (first-exp exps) env))
         (else (eval (first-exp exps) env)
               (eval-sequence (rest-exps exps) env))))
+
+;; assginment
 
 (define (eval-assignment exp env)
   (set-variable-value! (assignment-variable exp)
@@ -75,18 +80,25 @@
                        env)
   'ok)
 
+;; define
+
 (define (eval-definition exp env)
   (define-variable! (definition-variable exp)
                     (eval (definition-value exp) env)
                     env)
   'ok)
 
-;;;SECTION 4.1.2
+
+;;; [represent] 
+
+;; self-eavluating
 
 (define (self-evaluating? exp)
   (cond ((number? exp) true)
         ((string? exp) true)
         (else false)))
+
+;; quoted
 
 (define (quoted? exp)
   (tagged-list? exp 'quote))
@@ -98,6 +110,8 @@
       (eq? (car exp) tag)
       false))
 
+;; assignment
+
 (define (variable? exp) (symbol? exp))
 
 (define (assignment? exp)
@@ -107,6 +121,7 @@
 
 (define (assignment-value exp) (caddr exp))
 
+;; define
 
 (define (definition? exp)
   (tagged-list? exp 'define))
@@ -122,6 +137,8 @@
       (make-lambda (cdadr exp)
                    (cddr exp))))
 
+;; lambda
+
 (define (lambda? exp) (tagged-list? exp 'lambda))
 
 (define (lambda-parameters exp) (cadr exp))
@@ -130,6 +147,7 @@
 (define (make-lambda parameters body)
   (cons 'lambda (cons parameters body)))
 
+;; if
 
 (define (if? exp) (tagged-list? exp 'if))
 
@@ -145,6 +163,7 @@
 (define (make-if predicate consequent alternative)
   (list 'if predicate consequent alternative))
 
+;; begin
 
 (define (begin? exp) (tagged-list? exp 'begin))
 
@@ -161,6 +180,7 @@
 
 (define (make-begin seq) (cons 'begin seq))
 
+;; application
 
 (define (application? exp) (pair? exp))
 (define (operator exp) (car exp))
@@ -170,6 +190,7 @@
 (define (first-operand ops) (car ops))
 (define (rest-operands ops) (cdr ops))
 
+;; cond
 
 (define (cond? exp) (tagged-list? exp 'cond))
 
@@ -199,14 +220,7 @@
                      (sequence->exp (cond-actions first))
                      (expand-clauses rest))))))
 
-;;;SECTION 4.1.3
-
-(define (true? x)
-  (not (eq? x false)))
-
-(define (false? x)
-  (eq? x false))
-
+;; procedure
 
 (define (make-procedure parameters body env)
   (list 'procedure parameters body env))
@@ -214,11 +228,14 @@
 (define (compound-procedure? p)
   (tagged-list? p 'procedure))
 
-
 (define (procedure-parameters p) (cadr p))
 (define (procedure-body p) (caddr p))
 (define (procedure-environment p) (cadddr p))
 
+
+;;; The data structure maintained inside the evaluator
+
+;; environment
 
 (define (enclosing-environment env) (cdr env))
 
@@ -284,18 +301,13 @@
     (scan (frame-variables frame)
           (frame-values frame))))
 
-;;;SECTION 4.1.4
+;; Initialize
 
-(define (setup-environment)
-  (let ((initial-env
-         (extend-environment (primitive-procedure-names)
-                             (primitive-procedure-objects)
-                             the-empty-environment)))
-    (define-variable! 'true true initial-env)
-    (define-variable! 'false false initial-env)
-    initial-env))
+(define (true? x)
+  (not (eq? x false)))
 
-;[do later] (define the-global-environment (setup-environment))
+(define (false? x)
+  (eq? x false))
 
 (define (primitive-procedure? proc)
   (tagged-list? proc 'primitive))
@@ -307,8 +319,10 @@
         (list 'cdr cdr)
         (list 'cons cons)
         (list 'null? null?)
-;;      more primitives
-        ))
+        (list '+ +)
+        (list '- -)
+        (list '* *)
+        (list '/ /)))
 
 (define (primitive-procedure-names)
   (map car
@@ -318,13 +332,20 @@
   (map (lambda (proc) (list 'primitive (cadr proc)))
        primitive-procedures))
 
-;[moved to start of file] (define apply-in-underlying-scheme apply)
-
 (define (apply-primitive-procedure proc args)
   (apply-in-underlying-scheme
    (primitive-implementation proc) args))
 
+(define (setup-environment)
+  (let ((initial-env
+         (extend-environment (primitive-procedure-names)
+                             (primitive-procedure-objects)
+                             the-empty-environment)))
+    (define-variable! 'true true initial-env)
+    (define-variable! 'false false initial-env)
+    initial-env))
 
+(define the-global-environment (setup-environment))
 
 (define input-prompt ";;; M-Eval input:")
 (define output-prompt ";;; M-Eval value:")
@@ -351,9 +372,4 @@
                      '<procedure-env>))
       (display object)))
 
-;;;Following are commented out so as not to be evaluated when
-;;; the file is loaded.
-;;(define the-global-environment (setup-environment))
-;;(driver-loop)
-
-'METACIRCULAR-EVALUATOR-LOADED
+(driver-loop)
