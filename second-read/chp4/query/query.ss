@@ -53,6 +53,7 @@
 ; (put 'h 'd 1234)
 ; (get 'h 'd)
 
+
 ;;; stream
 
 (define (cons-stream a b)
@@ -108,3 +109,74 @@
 (define (display-line x)
     (newline)
     (display x))
+
+
+;;; driver loop
+
+(define input-prompt ";;; Query input:")
+(define output-prompt ";;; Query output:")
+
+(define (query-driver-loop)
+    (prompt-for-input input-prompt)
+     (let ((q (query-syntax-process (read))))
+        (display q)
+        (newline)
+        (cond ((assertion-to-be-added? q)
+                (add-rule-or-assertion! (add-assertion-body q))
+                (newline)
+                (display "Assertion adde to data base.  ")
+                (query-driver-loop))
+              (else   
+                (newline)
+                (display output-prompt)
+                (display-stream
+                    (stream-map
+                        (lambda (frame)
+                            (instantiate q
+                                         frame
+                                         (lambda (v f)
+                                            (contract-question-mark v))))
+                         (qeval q (singleton-stream '()))))
+                (query-driver-loop)))))
+
+(define (instantiate exp frame unbound-var-handler)
+    (display "<------ instatiate ------>")
+    (newline)
+    (display exp)
+    (display frame)
+    (define (copy exp)
+        (cond ((var? exp)
+               (display "Variables and its bindings:")
+               (display exp)
+               (let ((binding (binding-in-frame exp frame)))
+                  (display binding)
+                  (if binding
+                      (copy (binding-value binding))
+                      (unbound-var-handler exp frame))))
+              ((pair? exp)
+               (cons (copy (car exp)) (copy (cdr exp))))
+              (else exp)))
+    (copy exp))
+
+
+;;; query eval
+
+(define (qeval query frame-stream)
+    (display "<----- query eval ----->")
+    (newline)
+    (let ((qproc (get (type query) 'qeval)))
+        (if qproc
+            (qproc (contents query) frame-stream)
+            (simple-query query frame-stream))))
+
+;; simple query
+
+(define (simple-query query-pattern frame-stream)
+    (display "simple query:")
+    (display query-pattern)
+    (stream-flatmap
+        (lambda (frame)
+            (stream-append-delayed
+                 (find-assertions query-pattern frame)
+                 (delay (apply-rules query-pattern frame))))
+    frame-stream))        
