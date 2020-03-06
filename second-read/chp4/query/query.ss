@@ -201,3 +201,33 @@
             (delay (disjoin (rest-disjuncts disjuncts)
                             frame-stream)))))
 (put 'or 'qeval disjoin)    
+
+;; filter
+
+(define (negate operands frame-stream)
+    (stream-flatmap
+         (lambda (frame)
+              (if (stream-null? (qeval (negated-query operands)
+                                       (singleton-stream frame)))
+                  (singleton-stream frame)
+                  the-empty-stream))
+          frame-stream))
+ (put 'not 'qeval negate)       
+
+(define (lisp-value call frame-stream)
+   (stream-flatmap
+        (lambda (frame)
+             (if (execute
+                     (instantiate
+                      call
+                      frame
+                      (lambda (v f)
+                           (error "Unknwn pat var -- LISP-VALUE" v))))
+                 (singleton-stream frame)
+                 the-empty-stream))
+        frame-stream))
+(put 'lisp-value 'qeval lisp-value)
+
+(define (execute exp)
+     (apply (eval (predicate exp) user-initial-environment)
+            (args exp)))
