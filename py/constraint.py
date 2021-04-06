@@ -32,5 +32,8 @@ def make_connector(name=None):
     return connector
 
 
-def inform_all_except():
-    pass
+def inform_all_except(source, message, constraints):
+    """Inform all constraints of the message, except source."""
+    for c in constraints:
+        if c != source:
+            c[message]()
